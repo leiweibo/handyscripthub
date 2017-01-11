@@ -1,3 +1,5 @@
+import javax.imageio.ImageIO
+
 /**
  * Screenshot your phone from adb command and pull it into the local folder.
  * if there is only one device in your pc, just capture the screen directly without any choice, else,
@@ -46,7 +48,7 @@ if (deviceCount == 0) {
 }
 
 /**
- * Retry for 3 times.
+ * Retry for 2 times.
  * @param deviceStr the command of specify device, eg. "-s device1"
  */
 def doCaptureScreen(deviceStr) {
@@ -64,8 +66,8 @@ def doCaptureScreen(deviceStr) {
  */
 def captureScreen(deviceStr) {
     def targetImg = '/sdcard/screen.png'
+    def imgName = 'screen.png'
     def command = "adb ${deviceStr} shell screencap -p $targetImg"
-    println "The final command: ${command}"
     def proc = command.execute()
     proc.waitFor()
 
@@ -91,8 +93,12 @@ def captureScreen(deviceStr) {
         return false
     }
 
-    command = "open ." //删除图片
+    command = "open ${imgName}" //删除图片
     command.execute()
+
+    def img = ImageIO.read(new File(imgName));
+    println ("The width:${img.width}, the height:${img.height}")
+
     return true
 }
 
