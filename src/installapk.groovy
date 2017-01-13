@@ -40,11 +40,41 @@ def installApk(deviceStr, apkPath) {
     def proc = command.execute()
     proc.waitFor()
 
-    printlnError(proc)
+    command = "aapt dump badging ${apkPath} | grep launchable-activity:/ name="
+
+    proc = command.execute()
+    proc.waitFor()
+    def fetchLaunchActivityResult = proc.in.text.readLines()
+    def packageName;
+    def launchActivty;
+    for (line in fetchLaunchActivityResult) {
+        if (line.startsWith("package: name=")) {
+            tmpLine = line.split("\\s")[1]
+            if (tmpLine) {
+                packageName = tmpLine.split("=")[1]
+            }
+        } else if (line.startsWith("launchable-activity:")) {
+            tmpLine = line.split("\\s")[1]
+            if (tmpLine) {
+                launchActivty = tmpLine.split("=")[1]
+            }
+        }
+    }
+    if (packageName == '' || launchActivty == '') {
+        println "please check, your package name or launch activity parse incorrect."
+        println "packageName: $packageName\nlauchActivity：$launchActivty"
+    }
+    startApk(deviceStr, proc, packageName, launchActivty)
 }
 
-def printlnError(process) {
+def startApk(deviceStr, process, packageName, activityClazzName) {
     if (process.exitValue() > 0 ) {
         println "Std Err: ${process.err.text}"
+    } else {
+        def command = "adb ${deviceStr} shell am start -n ${packageName}/${activityClazzName}"
+        def proc = command.execute()
+        println "Std Err: ${proc.err.text}"
+        proc.waitFor()
+        println "it's done...."
     }
 }
