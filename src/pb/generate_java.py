@@ -61,10 +61,18 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}):
                 pass
             else:
                 content_without_msg_code += (line+'\n')
-                declared_field = re.compile('([A-Za-z0-9_*]+)\s').findall(line)
+                declared_field = re.compile('([A-Za-z0-9_*]+(\s)*)').findall(line)
                 if len(declared_field) >= 3:
-                    type = declared_field[1]
-                    name = declared_field[2]
+                    for f in declared_field[1]:
+                        if f.strip() != '':
+                            type = f.strip()
+                            break
+
+                    for f in declared_field[2]:
+                        if f.strip() != '':
+                            name = f.strip()
+                            break
+
                     if type in type_map:
                         class_content += f'  @JSONField(name="{name.upper()}")\n'
                         class_content += f'  private {type_map[type]} {name}; \n\n'
@@ -127,7 +135,7 @@ def parse_enum_pb(pb_file, code_text):
     generate_java_file(file_name=class_name, sub_dir=package_name, content=conetnt)
 
 
-def generate_java_file(out_put='java_out', sub_dir="", file_name="", content=""):
+def generate_java_file(out_put='java_out/models', sub_dir="", file_name="", content=""):
     if not file_name.endswith(".java"):
         file_name += '.java'
     final_path = out_put + "/" + sub_dir
@@ -136,6 +144,6 @@ def generate_java_file(out_put='java_out', sub_dir="", file_name="", content="")
     with open(final_path + "/" + file_name, "w+") as f:
         f.write(content)
 
+
 if __name__ == '__main__':
     generate_java()
-    # parse_rs_pb(pb_file='pb_out/trade_apply_biz/AnsQryApplyEnableMarket.proto', class_name=None, config=rs_config)
