@@ -4,8 +4,8 @@ import re
 type_map = {"uint32": "String", "bytes": "String", "string": "String"}
 enum_type_map = {"MarketType": "market", "CurrencyType": "currency"}
 directory = 'pb_out'
-rs_config = {"generated_class_endfix": "RsData", "pb_file_prefix": "Ans", "sub_package": "res"}
-rq_config = {"generated_class_endfix": "RqData", "pb_file_prefix": "Req", "sub_package": "req"}
+rs_config = {"generated_class_endfix": "RsData", "pb_file_prefix": "Ans", "sub_package": "res", "req_class_endfix": "Rs"}
+rq_config = {"generated_class_endfix": "RqData", "pb_file_prefix": "Req", "sub_package": "req", "req_class_endfix": "Rq"}
 normal_config = {"generated_class_endfix": "", "pb_file_prefix": "", "sub_package": ""}
 
 
@@ -103,6 +103,19 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}):
         content = (content_package + content_import + content_start + content_body + content_end)
         generate_java_file(file_name=class_name, sub_dir=package_name + '/' + f'{config["sub_package"]}', content=content)
         print('\n')
+
+        if class_name.endswith(config['generated_class_endfix']):
+            data_class_name = class_name
+            print(f'需要生成 {class_name}对应的请求类 ')
+            class_name = re.compile(f"(.*?){config['generated_class_endfix']}").findall(data_class_name)[0] + config[
+                'req_class_endfix']
+            content_import = 'import com.niubang.trade.tth.share.model.base1.CommonRq;\nimport lombok.Data;\n'
+            content_start = f'@Data \npublic class {class_name} extends CommonRq<{data_class_name}> ' + "{\n\n"
+            content_end = "}"
+            content = (content_package + content_import + content_start + content_end)
+            generate_java_file(file_name=class_name,
+                               sub_dir=package_name + '/' + f'{config["sub_package"]}',
+                               content=content)
 
 
 def parse_enum_pb(pb_file, code_text):
