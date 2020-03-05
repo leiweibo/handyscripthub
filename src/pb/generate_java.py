@@ -75,7 +75,7 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}):
 
                     if type in type_map:
                         class_content += f'  @JSONField(name="{name.upper()}")\n'
-                        class_content += f'  private {type_map[type]} {name}; \n\n'
+                        class_content += f'  private {type_map[type]} {process_name(name)}; \n\n'
                     else:
                         if type in enum_type_map:
                             class_content += f'  @JSONField(name="{name.upper()}")\n'
@@ -156,6 +156,17 @@ def generate_java_file(out_put='java_out/models', sub_dir="", file_name="", cont
         os.makedirs(final_path)
     with open(final_path + "/" + file_name, "w+") as f:
         f.write(content)
+
+
+def process_name(name):
+    # 将名字改成驼峰
+    if '_' in name:
+        alpha_after_under_scores = re.compile('_([\s\S]{1})').findall(name)
+        for alpha in alpha_after_under_scores:
+            name = name.replace(f'_{alpha}', alpha.upper())
+        return name
+    else:
+        return name
 
 
 if __name__ == '__main__':
