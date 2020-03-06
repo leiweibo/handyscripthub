@@ -26,7 +26,7 @@ def generate_java(directory=directory):
             print('\n')
 
 
-def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}):
+def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated=False):
     print('start to parse: ' + pb_file)
     import_lines = []
     file_content = ''
@@ -45,6 +45,7 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}):
     if 'enum' in file_content:
         parse_enum_pb(pb_file, code_text)
     else:
+        repeated = repeated
         lines = code_text.split('\n')
         # 没有msg_txt和msg_code的内容
         content_without_msg_code = ""
@@ -63,6 +64,12 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}):
                 content_without_msg_code += (line+'\n')
                 declared_field = re.compile('([A-Za-z0-9_*]+(\s)*)').findall(line)
                 if len(declared_field) >= 3:
+                    identifier = None
+                    for f in declared_field[0]:
+                        if f.strip() != '':
+                            identifier = f.strip()
+                            break
+
                     for f in declared_field[1]:
                         if f.strip() != '':
                             type = f.strip()
@@ -84,16 +91,19 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}):
                             if type in import_line:
                                 imported_pb = re.compile('import \"(.*?)\"').findall(import_line)[0]
                                 specify_config_str = class_name if class_name else imported_pb
+                                # TODO 如果import又包含非enum类的pb文件 这里就处理不了
+                                if re.compile('([a-zA-Z]*).proto').findall(imported_pb)[0] not in enum_type_map:
+                                    repeated = identifier and (identifier == 'repeated')
                                 if rs_config['pb_file_prefix'] in specify_config_str or rs_config['generated_class_endfix'] in specify_config_str:
-                                    parse_rs_pb(pb_file=directory + "/" + imported_pb, class_name=class_name, package_name=package_name, config=rs_config)
+                                    parse_rs_pb(pb_file=directory + "/" + imported_pb, class_name=class_name, package_name=package_name, config=rs_config, repeated=repeated)
                                 elif rq_config['pb_file_prefix'] in specify_config_str or rq_config['generated_class_endfix'] in specify_config_str:
-                                    parse_rs_pb(pb_file=directory + "/" + imported_pb, class_name=class_name, package_name=package_name, config=rq_config)
+                                    parse_rs_pb(pb_file=directory + "/" + imported_pb, class_name=class_name, package_name=package_name, config=rq_config, repeated=repeated)
                                 else:
-                                    parse_rs_pb(pb_file=directory + "/" + imported_pb, class_name=class_name, package_name=package_name, config=normal_config)
+                                    parse_rs_pb(pb_file=directory + "/" + imported_pb, class_name=class_name, package_name=package_name, config=normal_config, repeated=repeated)
 
         if class_content == '':
             return
-        print(content_without_msg_code)
+
 
         content_package = f'package com.niubang.trade.tth.share.model.{package_name}.{config["sub_package"]};\n\n'
         content_import = 'import com.alibaba.fastjson.annotation.JSONField;\nimport com.niubang.common.ToString;\nimport lombok.Data;\n\n'
@@ -107,15 +117,57 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}):
         if class_name.endswith(config['generated_class_endfix']):
             data_class_name = class_name
             print(f'需要生成 {class_name}对应的请求类 ')
+            print(content_without_msg_code)
+            extends_str = f'Common{config["req_class_endfix"]}'
+            wrapper = f'{data_class_name}'
+            try:
+                if repeated:
+                    wrapper = f'java.util.List<{data_class_name}>'
+            except NameError:
+                x = None
+
             class_name = re.compile(f"(.*?){config['generated_class_endfix']}").findall(data_class_name)[0] + config[
                 'req_class_endfix']
-            content_import = 'import com.niubang.trade.tth.share.model.base1.CommonRq;\nimport lombok.Data;\n'
-            content_start = f'@Data \npublic class {class_name} extends CommonRq<{data_class_name}> ' + "{\n\n"
+            content_import = f'import com.niubang.trade.tth.share.model.base.{extends_str};\nimport lombok.Data;\n'
+            content_start = f'@Data \npublic class {class_name} extends {extends_str}<{wrapper}> ' + "{\n\n"
             content_end = "}"
             content = (content_package + content_import + content_start + content_end)
             generate_java_file(file_name=class_name,
                                sub_dir=package_name + '/' + f'{config["sub_package"]}',
                                content=content)
+
+
+def generate_convert(pb_file_name, code_content_lines, repeat, import_pb_file):
+    """
+    生成convert类
+    :param pb_file_name:
+    :param code_content_lines:
+    :param repeat 判断是否为数组
+    :param import_db_file 引入的那个 ，pb应答体里面需要用这个对象的getter方法去获取
+    :return:
+    """
+    # 根据pb_file_name 来判断是 是将vo转成pb还是将pb转成vo
+    if rs_config['pb_file_prefix'] in pb_file_name:
+        # 表示rs文件，需要将pb专程vo
+        if repeat:
+            pass
+
+
+
+    for line in code_content_lines:
+        declared_field = re.compile('([A-Za-z0-9_*]+(\s)*)').findall(line)
+        if len(declared_field) >= 3:
+
+            for f in declared_field[1]:
+                if f.strip() != '':
+                    type = f.strip()
+                    break
+
+            for f in declared_field[2]:
+                if f.strip() != '':
+                    name = f.strip()
+                    break
+
 
 
 def parse_enum_pb(pb_file, code_text):
@@ -171,3 +223,4 @@ def process_name(name):
 
 if __name__ == '__main__':
     generate_java()
+    parse_rs_pb(pb_file='pb_out/trade_apply_biz/AnsQryApplyEnableMarket.proto', class_name=None, config=rs_config)
