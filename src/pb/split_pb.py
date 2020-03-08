@@ -6,9 +6,9 @@ def split(file, out_path=""):
     if len(out_path) == 0:
         return
 
-    name_map = {'CrhTxTradeApplyBizPacket': 'trade_apply_biz', 'CrhTxTradeBankBizPacket': 'trade_bank_biz',
-                'CrhTxTradeBaseDefine': 'trade_base_define', 'CrhTxTradeBizPacket': 'trade_biz',
-                'CrhTxTradeLoginPacket': 'trade_login', 'CrhTxTradeQryPacket': 'trade_query'}
+    name_map = {'CrhTxTradeApplyBizPacket': 'tradeapplybiz', 'CrhTxTradeBankBizPacket': 'tradebankbiz',
+                'CrhTxTradeBaseDefine': 'tradebasedefine', 'CrhTxTradeBizPacket': 'tradebiz',
+                'CrhTxTradeLoginPacket': 'tradelogin', 'CrhTxTradeQryPacket': 'tradequery'}
     re.compile('Crh(.*?)')
     if not out_path.endswith("/"):
         out_path += "/"
