@@ -246,7 +246,7 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
                         if f.strip() != '':
                             name = f.strip()
                             break
-                    name = process_name(name)
+                    name = process_name(name, True)
                     type = type.strip()
                     if type == 'uint32':
                         content_body += f'  rsData.set{name}(String.valueOf(ans.get{name}());\n'
@@ -269,6 +269,52 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
         for import_str in import_items:
             print(import_str)
 
+        print(content_body)
+    elif rq_config['req_class_endfix'] in class_name:
+        # ReqQryApplyEnableMarket
+        return_val = f'NB{import_pb_file}.{import_pb_file}'
+        content_body = f'public static {return_val} convertVo2Pb({class_name} req)'
+        content_body += "{\n"
+        content_body += f'  {import_pb_file}.Builder builder = {import_pb_file}.newBuilder();\n'
+        rq_data_class = re.compile('([a-zA-Z]*)Rq').findall(class_name)[0]
+        content_body += f'  List<Request<{rq_data_class}{rq_config["generated_class_endfix"]}>> requests = req.getRequests();\n'
+        content_body += f'  if (requests != null && requests.size() > 0) '
+        content_body += "{ \n"
+        content_body += f'    for (Request<{rq_data_class}{rq_config["generated_class_endfix"]}> r: requests)'
+        content_body += "{\n"
+        content_body += f'      {rq_data_class}{rq_config["generated_class_endfix"]} rq = r.getMsgBody();\n'
+
+        for line in code_content_lines.strip().split('\n'):
+            declared_field = re.compile('([A-Za-z0-9_*]+(\s)*)').findall(line)
+            if len(declared_field) >= 3:
+
+                for f in declared_field[1]:
+                    if f.strip() != '':
+                        type = f.strip()
+                        break
+
+                for f in declared_field[2]:
+                    if f.strip() != '':
+                        name = f.strip()
+                        break
+                name = process_name(name, True)
+                type = type.strip()
+                if type == 'uint32':
+                    content_body += f'      builder.set{name}(TypeUtils.ObjectToInt(rq.get{name}());\n'
+                elif type == 'bytes':
+                    content_body += f'      builder.set{name}(ByteStringUtils.toByteString(rq.get{name}()));\n'
+                    import_items.add('import com.niubang.trade.tth.biz.manager.tcp.utils.ByteStringUtils;')
+                elif type in enum_type_map:
+                    content_body += f'      builder.set{enum_type_map[type].title()}({type}.valueOf(TypeUtils.ObjectToInt(rq.get{name}())));\n'
+                    import_items.add('import com.niubang.common.util.TypeUtils;')
+                else:
+                    content_body += f'      builder.set{name}(rq.get{name}()); \n'
+        content_body += f'      break;\n'
+        content_body += "    }\n"
+        content_body += "  }\n"
+        content_body += f'  return builder.build();\n'
+
+        content_body += '}'
         print(content_body)
 
 
@@ -312,7 +358,9 @@ def generate_java_file(out_put='java_out/models', sub_dir="", file_name="", cont
         f.write(content)
 
 
-def process_name(name):
+def process_name(name, upper_case_first=False):
+    if upper_case_first:
+        name = name.title()
     # 将名字改成驼峰
     if '_' in name:
         alpha_after_under_scores = re.compile('_([\s\S]{1})').findall(name)
@@ -325,5 +373,6 @@ def process_name(name):
 
 if __name__ == '__main__':
     # generate_java()
-    parse_rs_pb(pb_file='pb_out/tradeapplybiz/AnsQryApplyEnableMarket.proto', class_name=None, config=rs_config)
-    # parse_rs_pb(pb_file='pb_out/tradelogin/AnsLogin.proto', class_name=None, config=rs_config)
+    # parse_rs_pb(pb_file='pb_out/tradeapplybiz/AnsQryApplyEnableMarket.proto', class_name=None, config=rs_config)
+    parse_rs_pb(pb_file='pb_out/tradelogin/AnsLogin.proto', class_name=None, config=rs_config)
+    parse_rs_pb(pb_file='pb_out/tradeapplybiz/ReqQryApplyEnableMarket.proto', class_name=None, config=rq_config)
