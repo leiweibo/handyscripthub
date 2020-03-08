@@ -136,22 +136,30 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
                                sub_dir=package_name + '/' + f'{config["sub_package"]}',
                                content=content)
 
-            generate_convert(class_name, content_without_msg_code, repeated, pb_file)
+            generate_convert(class_name, content_without_msg_code, repeated, pb_file, package_name)
 
 
 # 这个map里面存放pb里面有些非标准转换的对象，比如MsgApplyInfo对应的应答里面的对象应该getApplyInfoListList()；但实际上
 # 是getApplyinfoListList(), i为小写，为了兼容这种情况，所以添加这样一个map对象
 msg_map = {"MsgApplyInfo": "MsgApplyinfo"}
-def generate_convert(class_name, code_content_lines, repeat, import_pb_file):
+
+def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file, package_name):
     """
     生成convert类
     :param class_name: 类名
     :param code_content_lines:
     :param repeat 判断是否为数组
     :param import_db_file 引入的那个 ，pb应答体里面需要用这个对象的getter方法去获取
+    :param package_name 包名
     :return:
     """
-    import_pb_file = re.compile('([a-zA-Z]*).proto').findall(import_pb_file)[0]
+    import_pb_file = re.compile('([a-zA-Z]*).proto').findall(raw_import_pb_file)[0]
+    pb_file_package = re.compile('([a-zA-Z]*)/([a-zA-Z]*).proto').findall(raw_import_pb_file)[0]
+    import_items = set()
+    import_items.add('import com.niubang.trade.tth.share.model.base.AnsMsgHdr;')
+    import_items.add('import com.niubang.trade.tth.share.model.base.Answer;')
+    import_items.add(f'import java.util.List')
+    import_items.add(f'import java.util.ArrayList')
 
     # 根据pb_file_name 来判断是 是将vo转成pb还是将pb转成vo
     if rs_config['req_class_endfix'] in class_name:
@@ -172,12 +180,16 @@ def generate_convert(class_name, code_content_lines, repeat, import_pb_file):
         real_type = ''
         if repeat:
             real_type = f'List<{raw_class_name + rs_config["generated_class_endfix"]}>'
+
+            import_items.add(f'import niubang.trade.tth.share.model.{package_name}.res.{raw_class_name + rs_config["generated_class_endfix"]}')
+
             content_body += f'  Answer<{real_type}> answer = new Answer<>();\n'
             content_body += f'  answer.setAnsMsgHdr(header);\n\n'
             msg_method_name = import_pb_file
             if import_pb_file in msg_map:
                 msg_method_name = msg_map[import_pb_file]
             msg_class_name = re.compile('Msg([a-zA-Z]*)').findall(msg_method_name)[0]
+            import_items.add(f'import com.niubang.trade.tth.biz.manager.dataobject.{pb_file_package[0]}.NB{pb_file_package[1]}.{pb_file_package[1]};')
             content_body += f'  List<{import_pb_file}> pbMsgList = res.get{msg_class_name}ListList();\n'
             content_body += f'  List<{rs_data_val}> ansCommData = new ArrayList<>();\n'
             content_body += f'  for ({import_pb_file} pbMsg: pbMsgMap) '
@@ -203,6 +215,7 @@ def generate_convert(class_name, code_content_lines, repeat, import_pb_file):
                         content_body += f'    rsData.set{name}(String.valueOf(ans.get{name}());\n'
                     elif type == 'bytes':
                         content_body += f'    rsData.set{name}(ByteStringUtils.toString(ans.get{name}()));\n'
+                        import_items.add('import com.niubang.trade.tth.biz.manager.tcp.utils.ByteStringUtils;')
                     elif type in enum_type_map:
                         content_body += f'    rsData.set{name}(String.valueOf(pbMsg.get{name}().getNumber()));\n'
                     else:
@@ -216,8 +229,10 @@ def generate_convert(class_name, code_content_lines, repeat, import_pb_file):
             content_body += f'  Answer<{real_type}> answer = new Answer<>();\n'
             content_body += f'  answer.setAnsMsgHdr(header);\n\n'
 
-            content_body += f'  {rs_data_val} rsData = new  {rs_data_val}();\n'
 
+            content_body += f'  {rs_data_val} rsData = new  {rs_data_val}();\n'
+            import_items.add(
+                f'import niubang.trade.tth.share.model.{package_name}.res.{raw_class_name + rs_config["generated_class_endfix"]}')
             for line in code_content_lines.strip().split('\n'):
                 declared_field = re.compile('([A-Za-z0-9_*]+(\s)*)').findall(line)
                 if len(declared_field) >= 3:
@@ -236,6 +251,7 @@ def generate_convert(class_name, code_content_lines, repeat, import_pb_file):
                     if type == 'uint32':
                         content_body += f'  rsData.set{name}(String.valueOf(ans.get{name}());\n'
                     elif type == 'bytes':
+                        import_items.add('import com.niubang.trade.tth.biz.manager.tcp.utils.ByteStringUtils;')
                         content_body += f'  rsData.set{name}(ByteStringUtils.toString(ans.get{name}()));\n'
                     elif type in enum_type_map:
                         content_body += f'    rsData.set{name}(String.valueOf(pbMsg.get{name}().getNumber()));\n'
@@ -250,6 +266,9 @@ def generate_convert(class_name, code_content_lines, repeat, import_pb_file):
         content_body += f'  rs.setAnswers(answerList); \n'
         content_body += f'  return rs;\n'
         content_body += '}'
+        for import_str in import_items:
+            print(import_str)
+
         print(content_body)
 
 
@@ -307,4 +326,4 @@ def process_name(name):
 if __name__ == '__main__':
     # generate_java()
     parse_rs_pb(pb_file='pb_out/tradeapplybiz/AnsQryApplyEnableMarket.proto', class_name=None, config=rs_config)
-    parse_rs_pb(pb_file='pb_out/tradelogin/AnsLogin.proto', class_name=None, config=rs_config)
+    # parse_rs_pb(pb_file='pb_out/tradelogin/AnsLogin.proto', class_name=None, config=rs_config)
