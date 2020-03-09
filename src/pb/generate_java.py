@@ -7,6 +7,7 @@ directory = 'pb_out'
 rs_config = {"generated_class_endfix": "RsData", "pb_file_prefix": "Ans", "sub_package": "res", "req_class_endfix": "Rs"}
 rq_config = {"generated_class_endfix": "RqData", "pb_file_prefix": "Req", "sub_package": "req", "req_class_endfix": "Rq"}
 normal_config = {"generated_class_endfix": "", "pb_file_prefix": "", "sub_package": ""}
+base_properties = ['user_id', 'account', 'company_id']
 
 
 def start_to_parsepb(directory=directory):
@@ -55,6 +56,7 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
             package_name = pb_file.split("/")[-2].replace("_", "")
         if not class_name and len(names):
             class_name = names[0] + f"{config['generated_class_endfix']}"
+        extend_str = 'extends BaseRq '
         for line in lines:
             line = line.strip()
 
@@ -81,8 +83,12 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
                             break
 
                     if type in type_map:
-                        class_content += f'  @JSONField(name="{name.upper()}")\n'
-                        class_content += f'  private {type_map[type]} {process_name(name)}; \n\n'
+                        if name == 'user_pwd':
+                            class_content += f'  private {type_map[type]} {process_name(name)}; \n\n'
+                            extend_str = 'extends BaseSessionRq'
+                        else:
+                            class_content += f'  @JSONField(name="{name.upper()}")\n'
+                            class_content += f'  private {type_map[type]} {process_name(name)}; \n\n'
                     else:
                         if type in enum_type_map:
                             class_content += f'  @JSONField(name="{name.upper()}")\n'
@@ -104,10 +110,14 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
         if class_content == '':
             return
 
+        content_start = f'@Data \npublic class {class_name} {extend_str} ' + "{\n\n"
 
         content_package = f'package com.niubang.trade.tth.share.model.{package_name}.{config["sub_package"]};\n\n'
-        content_import = 'import com.alibaba.fastjson.annotation.JSONField;\nimport com.niubang.common.ToString;\nimport lombok.Data;\n\n'
-        content_start = f'@Data \npublic class {class_name} extends ToString ' + "{\n\n"
+        content_import = 'import com.alibaba.fastjson.annotation.JSONField;\nimport com.niubang.common.ToString;\nimport lombok.Data;\n'
+        if 'BaseRq' in extend_str:
+            content_import += 'import com.niubang.trade.tth.share.model.base.BaseRq; \n\n'
+        elif 'BaseSessionRq' in extend_str:
+            content_import += 'import com.niubang.trade.tth.share.model.base.BaseSessionRq; \n\n'
         content_body = class_content
         content_end = "}"
         content = (content_package + content_import + content_start + content_body + content_end)
