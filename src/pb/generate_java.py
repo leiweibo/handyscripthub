@@ -210,7 +210,7 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
         content_body += f'        NB{rs_config["pb_file_prefix"]}{raw_class_name}.{rs_config["pb_file_prefix"]}{raw_class_name} '
         content_body += f'ans = NB{rs_config["pb_file_prefix"]}{raw_class_name}.{rs_config["pb_file_prefix"]}{raw_class_name}.parseFrom(p.getBody());\n'
         content_body += '        AnsMsgHdr header = new AnsMsgHdr();\n'
-        content_body += '        header.setMsgText(ans.getMsgText());\n'
+        content_body += '        header.setMsgText(StringUtil.bytesToString(ans.getMsgText(), "GBK"));\n'
         content_body += '        header.setMsgCode(ans.getMsgCode());\n\n'
 
         import_items.append(
@@ -251,7 +251,7 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
                     if type == 'uint32' or type == 'uint64':
                         content_body += f'          rsData.set{name}(String.valueOf(pbMsg.get{name}()));\n'
                     elif type == 'bytes':
-                        content_body += f'          rsData.set{name}(StringUtil.bytesToString(pbMsg.get{name}()), "GB2312")));\n'
+                        content_body += f'          rsData.set{name}(StringUtil.bytesToString(pbMsg.get{name}(), "GB2312"));\n'
                         import_items.append('import com.niubang.trade.tth.biz.manager.util.StringUtil;')
                     elif type in enum_type_map:
                         content_body += f'          rsData.set{name}(String.valueOf(pbMsg.get{name}().getNumber()));\n'
