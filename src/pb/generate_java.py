@@ -307,8 +307,7 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
         else:
             content_body += f'        List<Answer> answerList = new ArrayList<>();\n'
         content_body += f'        answerList.add(answer); \n\n'
-        content_body += f'        {return_val} rs = new ArrayList();\n'
-        content_body += f'        return rs;\n'
+        content_body += f'        return answerList;\n'
         content_body += '      }\n'
         content_body += '    } catch (InvalidProtocolBufferException e) {\n'
         content_body += '      e.printStackTrace();\n'
@@ -366,7 +365,7 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
                     content_body += f'        builder.set{name}(StringUtil.stringToBytes(rq.get{name}()));\n'
                     import_items.append('import com.niubang.trade.tth.biz.manager.util.StringUtil;')
                 elif type in enum_type_map:
-                    content_body += f'        builder.set{enum_type_map[type].title()}({type}.forNumber(TypeUtils.ObjectToInt(rq.get{name}())));\n'
+                    content_body += f'        builder.set{enum_type_map[type].title()}({type}.valueOf(TypeUtils.ObjectToInt(rq.get{name}())));\n'
                     import_items.append('import com.niubang.common.util.TypeUtils;')
                     import_items.append(f'import com.niubang.trade.tth.biz.manager.dataobject.tradebasedefine.NB{type}.{type};')
                 else:
