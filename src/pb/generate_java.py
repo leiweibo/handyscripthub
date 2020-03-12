@@ -171,7 +171,7 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
     pb_file_package = re.compile('([a-zA-Z]*)/([a-zA-Z]*).proto').findall(raw_import_pb_file)[0]
     import_items = ['import com.niubang.trade.tth.share.model.base.AnsMsgHdr;',
                     'import com.niubang.trade.tth.share.model.base.Answer;', f'import java.util.List;',
-                    f'import java.util.ArrayList;']
+                    f'import java.util.ArrayList;', 'import org.slf4j.Logger;', 'import org.slf4j.LoggerFactory;']
 
     # 根据pb_file_name 来判断是 是将vo转成pb还是将pb转成vo
     if rs_config['req_class_endfix'] in class_name:
@@ -310,9 +310,16 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
         content_body += f'        return answerList;\n'
         content_body += '      }\n'
         content_body += '    } catch (InvalidProtocolBufferException e) {\n'
-        content_body += '      e.printStackTrace();\n'
+        content_body += '      logger.error("pb解析出错:", e);\n'
+        content_body += f'      List<Answer<{real_type}>> answerList = new ArrayList<>();\n'
+        content_body += '      AnsMsgHdr header = new AnsMsgHdr();\n'
+        content_body += '      header.setMsgText("系统数据处理异常");\n'
+        content_body += '      header.setMsgCode("999");\n'
+        content_body += f'      Answer<{real_type}> answer = new Answer<>();\n'
+        content_body += '      answer.setAnsMsgHdr(header);\n'
+        content_body += '      answerList.add(answer);\n'
+        content_body += '      return answerList;\n'
         content_body += "    }\n"
-        content_body += "    return result; \n"
         content_body += "  }\n"
         for import_str in import_items:
             print(import_str)
@@ -429,7 +436,8 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
     class_name = re.compile('([a-zA-Z_]+).java').findall(file_name)[0]
     content_class_name = f'\npublic class {class_name} '
     content_class_name += "{\n\n"
-    content_class_body = f'{existed_content}\n{content_body}'
+    content_body_logger = f'  private static Logger logger = LoggerFactory.getLogger({class_name}.class);'
+    content_class_body = f'{content_body_logger}\n{existed_content}\n{content_body}'
     content_class_end = "\n}\n"
 
     content = (content_package + content_import + content_class_name + content_class_body + content_class_end)
