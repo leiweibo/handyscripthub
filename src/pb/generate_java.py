@@ -56,7 +56,10 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
             package_name = pb_file.split("/")[-2].replace("_", "")
         if not class_name and len(names):
             class_name = names[0] + f"{config['generated_class_endfix']}"
-        extend_str = 'extends BaseRq '
+        if config == rq_config:
+            extend_str = 'extends BaseRq '
+        if config == rs_config:
+            extend_str = 'extends ToString '
         for line in lines:
             line = line.strip()
 
@@ -81,8 +84,8 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
                         if f.strip() != '':
                             name = f.strip()
                             break
-
-                    if name in base_properties:
+                    # 如果属性名字在base_properties里面 并且 是解析 rs的内容，那么直接忽略
+                    if name in base_properties and config == rq_config:
                         continue
 
                     if type in type_map:
