@@ -256,6 +256,9 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
                     elif type == 'bytes':
                         content_body += f'          rsData.set{name}(StringUtil.bytesToString(pbMsg.get{name}(), "GB2312"));\n'
                         import_items.append('import com.niubang.trade.tth.biz.manager.util.StringUtil;')
+                    elif type == 'string':
+                        content_body += f'          rsData.set{name}(StringUtil.gbk2Utf8(pbMsg.get{name}()));\n'
+                        import_items.append('import com.niubang.trade.tth.biz.manager.util.StringUtil;')
                     elif type in enum_type_map:
                         content_body += f'          rsData.set{name}(String.valueOf(pbMsg.get{name}().getNumber()));\n'
                     else:
@@ -289,6 +292,9 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
                     type = type.strip()
                     if type == 'uint32' or type == 'uint64':
                         content_body += f'        rsData.set{name}(String.valueOf(ans.get{name}()));\n'
+                    elif type == 'string':
+                        content_body += f'        rsData.set{name}(StringUtil.gbk2Utf8(ans.get{name}()));\n'
+                        import_items.append('import com.niubang.trade.tth.biz.manager.util.StringUtil;')
                     elif type == 'bytes':
                         import_items.append('import com.niubang.trade.tth.biz.manager.util.StringUtil;')
                         content_body += f'        rsData.set{name}(StringUtil.bytesToString(ans.get{name}(), "GB2312"));\n'
@@ -301,8 +307,8 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
             # ansCommData.add(rsData);
             # answer.setAnsCommData(ansCommData);
             tmp_end_fix = f"{rs_config['generated_class_endfix']}"
-            content_body += f'        List<{raw_class_name}{tmp_end_fix}> ansCommData = new ArrayList();'
-            content_body += f'        ansCommData.add(rsData);'
+            content_body += f'        List<{raw_class_name}{tmp_end_fix}> ansCommData = new ArrayList();\n'
+            content_body += f'        ansCommData.add(rsData);\n'
             content_body += f'        answer.setAnsCommData(ansCommData);\n'
         content_body += '\n'
         if real_type and not real_type == '':
