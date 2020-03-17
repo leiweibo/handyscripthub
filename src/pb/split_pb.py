@@ -75,6 +75,8 @@ def split(file, out_path=""):
 def delete_dir(dir):
     for root, dirs, files in os.walk(dir, topdown=False):
         for name in files:
+            if name.endswith("sh"):
+                continue
             os.remove(os.path.join(root, name))
         for name in dirs:
             os.rmdir(os.path.join(root, name))

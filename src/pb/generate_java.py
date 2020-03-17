@@ -4,8 +4,10 @@ import re
 type_map = {"uint64": "String", "uint32": "String", "bytes": "String", "string": "String"}
 enum_type_map = {"MarketType": "market", "CurrencyType": "currency", "DCLStatusType": "dclFlag"}
 directory = 'pb_out'
-rs_config = {"generated_class_endfix": "RsData", "pb_file_prefix": "Ans", "sub_package": "res", "req_class_endfix": "Rs"}
-rq_config = {"generated_class_endfix": "RqData", "pb_file_prefix": "Req", "sub_package": "req", "req_class_endfix": "Rq"}
+rs_config = {"generated_class_endfix": "RsData", "pb_file_prefix": "Ans", "sub_package": "res",
+             "req_class_endfix": "Rs"}
+rq_config = {"generated_class_endfix": "RqData", "pb_file_prefix": "Req", "sub_package": "req",
+             "req_class_endfix": "Rq"}
 normal_config = {"generated_class_endfix": "", "pb_file_prefix": "", "sub_package": ""}
 base_properties = ['user_id', 'account', 'company_id']
 
@@ -52,6 +54,7 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
         content_without_msg_code = ""
         names = re.compile(f'{config["pb_file_prefix"]}(.*?).proto').findall(pb_file)
         class_content = ''
+        content_import = ''
         if not package_name:
             package_name = pb_file.split("/")[-2].replace("_", "")
         if not class_name and len(names):
@@ -59,14 +62,16 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
         if config == rq_config:
             extend_str = 'extends BaseRq '
         if config == rs_config:
+            content_import += 'import com.niubang.common.ToString;'
             extend_str = 'extends ToString '
+        need_not_null_import = False
         for line in lines:
             line = line.strip()
 
             if ('msg_code' in line) or ('msg_text' in line) or line.strip() == '':
                 pass
             else:
-                content_without_msg_code += (line+'\n')
+                content_without_msg_code += (line + '\n')
                 declared_field = re.compile('([A-Za-z0-9_*]+(\s)*)').findall(line)
                 if len(declared_field) >= 3:
                     identifier = None
@@ -89,15 +94,31 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
                         continue
 
                     if type in type_map:
+                        # ReqLogin.proto要特殊处理，他的这个user_pwd字段不需要映射为Session
                         if name == 'user_pwd':
-                            class_content += f'  private {type_map[type]} {process_name(name)}; \n\n'
-                            extend_str = 'extends BaseSessionRq'
+
+                            if 'ReqLogin.proto' in pb_file:
+                                class_content += f'  @JSONField(name="{name.upper()}")\n'
+                                if identifier.strip() == 'required':
+                                    class_content += f'  @NotNull\n'
+                                    need_not_null_import = True
+                                class_content += f'  private {type_map[type]} {process_name(name)}; \n\n'
+                            else:
+                                class_content += f'  private {type_map[type]} {process_name(name)}; \n\n'
+                                extend_str = 'extends BaseSessionRq'
                         else:
                             class_content += f'  @JSONField(name="{name.upper()}")\n'
+                            if identifier.strip() == 'required':
+                                class_content += f'  @NotNull\n'
+                                need_not_null_import = True
+
                             class_content += f'  private {type_map[type]} {process_name(name)}; \n\n'
                     else:
                         if type in enum_type_map:
                             class_content += f'  @JSONField(name="{name.upper()}")\n'
+                            if identifier.strip() == 'required':
+                                class_content += f'  @NotNull\n'
+                                need_not_null_import = True
                             class_content += f'  private String {enum_type_map[type]}; \n\n'
                         for import_line in import_lines:
                             if type in import_line:
@@ -106,12 +127,20 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
                                 # TODO 如果import又包含非enum类的pb文件 这里就处理不了
                                 if re.compile('([a-zA-Z]*).proto').findall(imported_pb)[0] not in enum_type_map:
                                     repeated = identifier and (identifier == 'repeated')
-                                if rs_config['pb_file_prefix'] in specify_config_str or rs_config['generated_class_endfix'] in specify_config_str:
-                                    parse_rs_pb(pb_file=directory + "/" + imported_pb, class_name=class_name, package_name=package_name, config=rs_config, repeated=repeated, variable_name=name)
-                                elif rq_config['pb_file_prefix'] in specify_config_str or rq_config['generated_class_endfix'] in specify_config_str:
-                                    parse_rs_pb(pb_file=directory + "/" + imported_pb, class_name=class_name, package_name=package_name, config=rq_config, repeated=repeated, variable_name=name)
+                                if rs_config['pb_file_prefix'] in specify_config_str or rs_config[
+                                    'generated_class_endfix'] in specify_config_str:
+                                    parse_rs_pb(pb_file=directory + "/" + imported_pb, class_name=class_name,
+                                                package_name=package_name, config=rs_config, repeated=repeated,
+                                                variable_name=name)
+                                elif rq_config['pb_file_prefix'] in specify_config_str or rq_config[
+                                    'generated_class_endfix'] in specify_config_str:
+                                    parse_rs_pb(pb_file=directory + "/" + imported_pb, class_name=class_name,
+                                                package_name=package_name, config=rq_config, repeated=repeated,
+                                                variable_name=name)
                                 else:
-                                    parse_rs_pb(pb_file=directory + "/" + imported_pb, class_name=class_name, package_name=package_name, config=normal_config, repeated=repeated, variable_name=name)
+                                    parse_rs_pb(pb_file=directory + "/" + imported_pb, class_name=class_name,
+                                                package_name=package_name, config=normal_config, repeated=repeated,
+                                                variable_name=name)
 
         if class_content == '':
             return
@@ -119,7 +148,10 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
         content_start = f'@Data \npublic class {class_name} {extend_str} ' + "{\n\n"
 
         content_package = f'package com.niubang.trade.tth.share.model.{package_name}.{config["sub_package"]};\n\n'
-        content_import = 'import com.alibaba.fastjson.annotation.JSONField;\nimport com.niubang.common.ToString;\nimport lombok.Data;\n'
+        content_import += 'import com.alibaba.fastjson.annotation.JSONField;\n' \
+                         '\nimport lombok.Data;\n'
+        if need_not_null_import:
+            content_import += 'import com.niubang.trade.tth.share.model.annotation.NotNull;\n\n'
         if 'BaseRq' in extend_str:
             content_import += 'import com.niubang.trade.tth.share.model.base.BaseRq; \n\n'
         elif 'BaseSessionRq' in extend_str:
@@ -127,13 +159,14 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
         content_body = class_content
         content_end = "}"
         content = (content_package + content_import + content_start + content_body + content_end)
-        generate_java_file(file_name=class_name, sub_dir=package_name + '/' + f'{config["sub_package"]}', content=content)
-        print('\n')
+        generate_java_file(file_name=class_name, sub_dir=package_name + '/' + f'{config["sub_package"]}',
+                           content=content)
+        # print('\n')
 
         if class_name.endswith(config['generated_class_endfix']):
             data_class_name = class_name
-            print(f'需要生成 {class_name}对应的请求类 ')
-            print(content_without_msg_code)
+            # print(f'需要生成 {class_name}对应的请求类 ')
+            # print(content_without_msg_code)
             extends_str = f'Common{config["req_class_endfix"]}'
             wrapper = f'{data_class_name}'
             try:
@@ -159,6 +192,7 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
 # 是getApplyinfoListList(), i为小写，为了兼容这种情况，所以添加这样一个map对象
 msg_map = {"MsgApplyInfo": "MsgApplyinfo"}
 
+
 def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file, package_name, variable_name):
     """
     生成convert类
@@ -178,7 +212,8 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
 
     # 根据pb_file_name 来判断是 是将vo转成pb还是将pb转成vo
     if rs_config['req_class_endfix'] in class_name:
-        import_items.append(f'import com.niubang.trade.tth.share.model.{package_name}.{rs_config["sub_package"]}.{class_name};')
+        import_items.append(
+            f'import com.niubang.trade.tth.share.model.{package_name}.{rs_config["sub_package"]}.{class_name};')
         raw_class_name = re.compile(f'([a-zA-Z]*){rs_config["req_class_endfix"]}').findall(class_name)[0]
         # return_val = f'{raw_class_name}{rs_config["req_class_endfix"]}'
         rs_data_val = f'{raw_class_name}{rs_config["generated_class_endfix"]}'
@@ -188,7 +223,8 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
         content_body = f'  public static {return_val} convertPb2Vo'
         content_body += "(Packet p) {\n"
         import_items.append(f'import com.niubang.trade.tth.biz.manager.tcp.dataobject.Packet;')
-        import_items.append(f'import com.niubang.trade.tth.biz.manager.dataobject.{package_name}.NB{rs_config["pb_file_prefix"] + raw_class_name};')
+        import_items.append(
+            f'import com.niubang.trade.tth.biz.manager.dataobject.{package_name}.NB{rs_config["pb_file_prefix"] + raw_class_name};')
         import_items.append('import com.niubang.trade.tth.biz.manager.dataobject.tradebasedefine.NBMsgErrorInfoResult;')
         import_items.append('import com.google.protobuf.InvalidProtocolBufferException;')
         import_items.append('import com.niubang.trade.tth.biz.manager.util.StringUtil;')
@@ -199,7 +235,6 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
         content_body += "      if (p.getHead().getErrorNo() != 0) {\n"
         content_body += f'        {answer_type} answerRs = new Answer<>();\n'
         content_body += f'        AnsMsgHdr ansMsgHdr = new AnsMsgHdr();\n'
-
 
         content_body += '''        NBMsgErrorInfoResult.MsgErrorInfoResult errorInfoResult = NBMsgErrorInfoResult.MsgErrorInfoResult
             .parseFrom(bytes);
@@ -229,7 +264,8 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
                 msg_method_name = msg_map[import_pb_file]
             # msg_class_name = re.compile('Msg([a-zA-Z]*)').findall(msg_method_name)[0]
             msg_class_name = process_name(variable_name, True)
-            import_items.append(f'import com.niubang.trade.tth.biz.manager.dataobject.{pb_file_package[0]}.NB{pb_file_package[1]}.{pb_file_package[1]};')
+            import_items.append(
+                f'import com.niubang.trade.tth.biz.manager.dataobject.{pb_file_package[0]}.NB{pb_file_package[1]}.{pb_file_package[1]};')
             content_body += f'        List<{import_pb_file}> pbMsgList = ans.get{msg_class_name}List();\n'
             content_body += f'        List<{rs_data_val}> ansCommData = new ArrayList<>();\n'
             content_body += f'        for ({import_pb_file} pbMsg: pbMsgList) '
@@ -330,14 +366,15 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
         content_body += '      return answerList;\n'
         content_body += "    }\n"
         content_body += "  }\n"
-        for import_str in import_items:
-            print(import_str)
-
-        print(content_body)
-        print('----------------------------')
+        # for import_str in import_items:
+        #     print(import_str)
+        #
+        # print(content_body)
+        # print('----------------------------')
     elif rq_config['req_class_endfix'] in class_name:
         # ReqQryApplyEnableMarket
-        import_items.append(f'import com.niubang.trade.tth.biz.manager.dataobject.{pb_file_package[0]}.NB{pb_file_package[1]};')
+        import_items.append(
+            f'import com.niubang.trade.tth.biz.manager.dataobject.{pb_file_package[0]}.NB{pb_file_package[1]};')
 
         return_val = f'NB{import_pb_file}.{import_pb_file}'
         raw_class_name = re.compile(f'([a-zA-Z]*){rq_config["req_class_endfix"]}').findall(class_name)[0]
@@ -348,10 +385,10 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
         import_items.append(f'import com.niubang.trade.tth.biz.manager.dataobject.{package_name}.{return_val};')
         rq_data_class = re.compile('([a-zA-Z]*)Rq').findall(class_name)[0]
 
-
         content_body += f'    List<Request<{rq_data_class}{rq_config["generated_class_endfix"]}>> requests = req.getRequests();\n'
         import_items.append(f'import com.niubang.trade.tth.share.model.{pb_file_package[0]}.req.{class_name};')
-        import_items.append(f'import com.niubang.trade.tth.share.model.{package_name}.req.{rq_data_class}{rq_config["generated_class_endfix"]};')
+        import_items.append(
+            f'import com.niubang.trade.tth.share.model.{package_name}.req.{rq_data_class}{rq_config["generated_class_endfix"]};')
         import_items.append(f'import com.niubang.trade.tth.share.model.base.Request;')
         content_body += f'    if (requests != null && requests.size() > 0) '
         content_body += "{\n"
@@ -383,7 +420,8 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
                 elif type in enum_type_map:
                     content_body += f'        builder.set{enum_type_map[type].title()}({type}.valueOf(TypeUtils.ObjectToInt(rq.get{name}())));\n'
                     import_items.append('import com.niubang.common.util.TypeUtils;')
-                    import_items.append(f'import com.niubang.trade.tth.biz.manager.dataobject.tradebasedefine.NB{type}.{type};')
+                    import_items.append(
+                        f'import com.niubang.trade.tth.biz.manager.dataobject.tradebasedefine.NB{type}.{type};')
                 else:
                     content_body += f'        builder.set{name}(rq.get{name}()); \n'
         content_body += f'        break;\n'
@@ -392,7 +430,6 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
         content_body += f'    return builder.build();\n'
 
         content_body += '  }'
-
 
     file_name = raw_class_name + "Convert.java"
 
@@ -431,7 +468,7 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
 
                 line = f.readline()
 
-    print(existed_content)
+    # print(existed_content)
     content_package = f'package com.niubang.trade.tth.biz.manager.convert.{package_name};\n\n'
     content_import = ''
 
@@ -525,4 +562,3 @@ if __name__ == '__main__':
     # parse_rs_pb(pb_file='pb_out/tradeapplybiz/AnsQryApplyEnableMarket.proto', class_name=None, config=rs_config)
     # parse_rs_pb(pb_file='pb_out/tradeapplybiz/ReqQryApplyEnableMarket.proto', class_name=None, config=rq_config)
     # parse_rs_pb(pb_file='pb_out/tradebiz/AnsQryDaySecuPrt.proto', class_name=None, config=rs_config)
-

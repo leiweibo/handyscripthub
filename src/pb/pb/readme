@@ -1,1 +1,2 @@
 pb文件
+raw目录放从服务端拿过来的原始pb文件，执行下change_charset.sh 修改字符集为utf8
