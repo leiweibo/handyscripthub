@@ -257,7 +257,7 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
                         content_body += f'          rsData.set{name}(StringUtil.bytesToString(pbMsg.get{name}(), "GB2312"));\n'
                         import_items.append('import com.niubang.trade.tth.biz.manager.util.StringUtil;')
                     elif type == 'string':
-                        content_body += f'          rsData.set{name}(StringUtil.gbk2Utf8(pbMsg.get{name}()));\n'
+                        content_body += f'          rsData.set{name}(pbMsg.get{name}());\n'
                         import_items.append('import com.niubang.trade.tth.biz.manager.util.StringUtil;')
                     elif type in enum_type_map:
                         content_body += f'          rsData.set{name}(String.valueOf(pbMsg.get{name}().getNumber()));\n'
@@ -293,7 +293,7 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
                     if type == 'uint32' or type == 'uint64':
                         content_body += f'        rsData.set{name}(String.valueOf(ans.get{name}()));\n'
                     elif type == 'string':
-                        content_body += f'        rsData.set{name}(StringUtil.gbk2Utf8(ans.get{name}()));\n'
+                        content_body += f'        rsData.set{name}(ans.get{name}());\n'
                         import_items.append('import com.niubang.trade.tth.biz.manager.util.StringUtil;')
                     elif type == 'bytes':
                         import_items.append('import com.niubang.trade.tth.biz.manager.util.StringUtil;')
