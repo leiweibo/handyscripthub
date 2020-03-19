@@ -3,3 +3,4 @@
 **/*.xlsx
 javas
 **/*.java
+__pycache__

@@ -1,5 +1,6 @@
 import os
 import re
+from read_excel import read_excel_data
 
 type_map = {"uint64": "String", "uint32": "String", "bytes": "String", "string": "String"}
 enum_type_map = {"MarketType": "market", "CurrencyType": "currency", "DCLStatusType": "dclFlag"}
@@ -11,6 +12,7 @@ rq_config = {"generated_class_endfix": "RqData", "pb_file_prefix": "Req", "sub_p
 normal_config = {"generated_class_endfix": "", "pb_file_prefix": "", "sub_package": ""}
 base_properties = ['user_id', 'account', 'company_id']
 
+decimal_cnt_dict = read_excel_data('excel/api.xlsx')
 
 def start_to_parsepb(directory=directory):
     files = os.walk(directory)
@@ -31,6 +33,7 @@ def start_to_parsepb(directory=directory):
 
 def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated=False, variable_name=None):
     print('start to parse: ' + pb_file)
+
     import_lines = []
     file_content = ''
     with open(pb_file) as f:
@@ -285,6 +288,8 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
                         if f.strip() != '':
                             name = f.strip()
                             break
+
+                    raw_name = name # 这个变量用来下面生成是否进行数字格式化的时候操作
                     name = process_name(name, True)
                     type = type.strip()
                     if type == 'uint32' or type == 'uint64':
@@ -293,8 +298,15 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
                         content_body += f'          rsData.set{name}(StringUtil.bytesToString(pbMsg.get{name}(), "GB2312"));\n'
                         import_items.append('import com.niubang.trade.tth.biz.manager.util.StringUtil;')
                     elif type == 'string':
-                        content_body += f'          rsData.set{name}(pbMsg.get{name}());\n'
-                        import_items.append('import com.niubang.trade.tth.biz.manager.util.StringUtil;')
+                        if raw_name.upper() in decimal_cnt_dict:
+                            decimal_cnt = decimal_cnt_dict[raw_name.upper()][0][1]
+                            decimal_format = "0.000" if int(decimal_cnt) == 3 else "0.00"
+                            import_items.append('import com.niubang.trade.tth.biz.manager.util.NumberUtil;')
+                            import_items.append('import java.math.BigDecimal;')
+                            content_body += f'          rsData.set{name}(NumberUtil.decimalFormat("{decimal_format}", new BigDecimal(pbMsg.get{name}())));\n'
+                        else:
+                            content_body += f'          rsData.set{name}(pbMsg.get{name}());\n'
+                            import_items.append('import com.niubang.trade.tth.biz.manager.util.StringUtil;')
                     elif type in enum_type_map:
                         content_body += f'          rsData.set{name}(String.valueOf(pbMsg.get{name}().getNumber()));\n'
                     else:
