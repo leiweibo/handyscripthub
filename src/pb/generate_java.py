@@ -114,8 +114,13 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
                             if identifier.strip() == 'required':
                                 class_content += f'  @NotNull\n'
                                 need_not_null_import = True
-
-                            class_content += f'  private {type_map[type]} {process_name(name)}; \n\n'
+                            if config == rq_config:
+                                default_val = ' = ""'
+                                if "int" in type:
+                                    default_val = ' = "0"'
+                                class_content += f'  private {type_map[type]} {process_name(name)}{default_val}; \n\n'
+                            else:
+                                class_content += f'  private {type_map[type]} {process_name(name)}; \n\n'
                     else:
                         if type in enum_type_map:
                             class_content += f'  @JSONField(name="{name.upper()}")\n'
