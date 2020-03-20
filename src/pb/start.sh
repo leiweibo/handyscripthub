@@ -15,4 +15,8 @@ cp -r convert/* /Users/weibolei/Dev/nb-workspace/trade-tcp-http/biz/manager/src/
 
 cp -r models/* /Users/weibolei/Dev/nb-workspace/trade-tcp-http/share/model/src/main/java/com/niubang/trade/tth/share/model
 
+cd ../pb_out
+cp -r * /Users/weibolei/Dev/nb-workspace/trade-tcp-http/biz/manager/src/main/proto
+rm -rf /Users/weibolei/Dev/nb-workspace/trade-tcp-http/biz/manager/src/main/proto/generate_java_by_pb.sh
+
 echo '处理完成'

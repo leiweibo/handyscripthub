@@ -302,8 +302,7 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
                             decimal_cnt = decimal_cnt_dict[raw_name.upper()][0][1]
                             decimal_format = "0.000" if int(decimal_cnt) == 3 else "0.00"
                             import_items.append('import com.niubang.trade.tth.biz.manager.util.NumberUtil;')
-                            import_items.append('import java.math.BigDecimal;')
-                            content_body += f'          rsData.set{name}(NumberUtil.decimalFormat("{decimal_format}", new BigDecimal(pbMsg.get{name}())));\n'
+                            content_body += f'          rsData.set{name}(NumberUtil.decimalFormat("{decimal_format}", pbMsg.get{name}()));\n'
                         else:
                             content_body += f'          rsData.set{name}(pbMsg.get{name}());\n'
                             import_items.append('import com.niubang.trade.tth.biz.manager.util.StringUtil;')
@@ -368,6 +367,16 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
         content_body += '      }\n'
         content_body += '    } catch (InvalidProtocolBufferException e) {\n'
         content_body += '      logger.error("pb解析出错:", e);\n'
+        content_body += f'      List<Answer<{real_type}>> answerList = new ArrayList<>();\n'
+        content_body += '      AnsMsgHdr header = new AnsMsgHdr();\n'
+        content_body += '      header.setMsgText("系统数据处理异常");\n'
+        content_body += '      header.setMsgCode("998");\n'
+        content_body += f'      Answer<{real_type}> answer = new Answer<>();\n'
+        content_body += '      answer.setAnsMsgHdr(header);\n'
+        content_body += '      answerList.add(answer);\n'
+        content_body += '      return answerList;\n'
+        content_body += '    } catch (Exception e) {\n'
+        content_body += '      logger.error("数据处理出错:", e);\n'
         content_body += f'      List<Answer<{real_type}>> answerList = new ArrayList<>();\n'
         content_body += '      AnsMsgHdr header = new AnsMsgHdr();\n'
         content_body += '      header.setMsgText("系统数据处理异常");\n'
