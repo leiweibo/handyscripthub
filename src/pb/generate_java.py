@@ -107,8 +107,12 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
                                     need_not_null_import = True
                                 class_content += f'  private {type_map[type]} {process_name(name)}; \n\n'
                             else:
-                                class_content += f'  private {type_map[type]} {process_name(name)}; \n\n'
-                                extend_str = 'extends BaseSessionRq'
+                                if identifier.strip() == 'required':
+                                    class_content += f'  private {type_map[type]} {process_name(name)}; \n\n'
+                                    extend_str = 'extends BaseSessionRq'
+                                else:
+                                    class_content += f'  private {type_map[type]} {process_name(name)}; \n\n'
+                                    extend_str = 'extends BaseAllowNullSessionRq'
                         else:
                             class_content += f'  @JSONField(name="{name.upper()}")\n'
                             if identifier.strip() == 'required':
@@ -164,6 +168,8 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
             content_import += 'import com.niubang.trade.tth.share.model.base.BaseRq; \n\n'
         elif 'BaseSessionRq' in extend_str:
             content_import += 'import com.niubang.trade.tth.share.model.base.BaseSessionRq; \n\n'
+        elif 'BaseAllowNullSessionRq' in extend_str:
+            content_import += 'import com.niubang.trade.tth.share.model.base.BaseAllowNullSessionRq; \n\n'
         content_body = class_content
         content_end = "}"
         content = (content_package + content_import + content_start + content_body + content_end)
