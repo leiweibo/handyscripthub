@@ -11,8 +11,11 @@ rq_config = {"generated_class_endfix": "RqData", "pb_file_prefix": "Req", "sub_p
              "req_class_endfix": "Rq"}
 normal_config = {"generated_class_endfix": "", "pb_file_prefix": "", "sub_package": ""}
 base_properties = ['user_id', 'account', 'company_id']
+# 不继承BaseRq的pb文件
+no_extends_base_rq = ['ReqQryAnnouncement', 'ReqQryDayApplySecu']
 
 decimal_cnt_dict = read_excel_data('excel/api.xlsx')
+
 
 def start_to_parsepb(directory=directory):
     files = os.walk(directory)
@@ -36,6 +39,8 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
 
     import_lines = []
     file_content = ''
+    # 当前这个文件是否后需要继承BaseRq
+    file_need_extends_base_rq = False
     with open(pb_file) as f:
         line = f.readline()
 
@@ -92,8 +97,17 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
                         if f.strip() != '':
                             name = f.strip()
                             break
+
+                    for tmp_pb_name in no_extends_base_rq:
+                        if tmp_pb_name in pb_file:
+                            file_need_extends_base_rq = True
+                            extend_str = 'extends ToString '
+                            if 'com.niubang.common.ToString' not in content_import:
+                                content_import += 'import com.niubang.common.ToString;\n'
+                            break
+
                     # 如果属性名字在base_properties里面 并且 是解析 rs的内容，那么直接忽略
-                    if name in base_properties and config == rq_config:
+                    if not file_need_extends_base_rq and name in base_properties and config == rq_config:
                         continue
 
                     if type in type_map:
@@ -161,7 +175,7 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
 
         content_package = f'package com.niubang.trade.tth.share.model.{package_name}.{config["sub_package"]};\n\n'
         content_import += 'import com.alibaba.fastjson.annotation.JSONField;\n' \
-                         '\nimport lombok.Data;\n'
+                          '\nimport lombok.Data;\n'
         if need_not_null_import:
             content_import += 'import com.niubang.trade.tth.share.model.annotation.NotNull;\n\n'
         if 'BaseRq' in extend_str:
@@ -300,7 +314,7 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
                             name = f.strip()
                             break
 
-                    raw_name = name # 这个变量用来下面生成是否进行数字格式化的时候操作
+                    raw_name = name  # 这个变量用来下面生成是否进行数字格式化的时候操作
                     name = process_name(name, True)
                     type = type.strip()
                     if type == 'uint32' or type == 'uint64':
