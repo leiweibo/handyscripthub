@@ -119,36 +119,34 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
                                 if identifier.strip() == 'required':
                                     class_content += f'  @NotNull\n'
                                     need_not_null_import = True
-                                class_content += f'  private {type_map[type]} {process_name(name)}; \n\n'
+                                class_content += f'  private {type_map[type]} {process_name(name)};\n\n'
                             else:
                                 if identifier.strip() == 'required':
-                                    class_content += f'  private {type_map[type]} {process_name(name)}; \n\n'
+                                    class_content += f'  private {type_map[type]} {process_name(name)};\n\n'
                                     extend_str = 'extends BaseSessionRq'
                                 else:
-                                    class_content += f'  private {type_map[type]} {process_name(name)}; \n\n'
+                                    class_content += f'  private {type_map[type]} {process_name(name)};\n\n'
                                     extend_str = 'extends BaseAllowNullSessionRq'
                         else:
+                            default_val = ''
                             class_content += f'  @JSONField(name="{name.upper()}")\n'
                             if identifier.strip() == 'required' and config == rq_config:
                                 class_content += f'  @NotNull\n'
                                 need_not_null_import = True
-                            if config == rq_config:
-                                default_val = ''
+                            elif config == rq_config:
                                 if "int" in type:
-                                    if need_not_null_import:
-                                        default_val = ''
-                                    else:
-                                        default_val = ' = "0"'
-                                class_content += f'  private {type_map[type]} {process_name(name)}{default_val}; \n\n'
-                            else:
-                                class_content += f'  private {type_map[type]} {process_name(name)}; \n\n'
+                                    default_val = ' = "0"'
+                                else:
+                                    default_val = ' = ""'
+                            class_content += f'  private {type_map[type]} {process_name(name)}{default_val};\n\n'
+
                     else:
                         if type in enum_type_map:
                             class_content += f'  @JSONField(name="{name.upper()}")\n'
                             if identifier.strip() == 'required' and config == rq_config:
                                 class_content += f'  @NotNull\n'
                                 need_not_null_import = True
-                            class_content += f'  private String {enum_type_map[type]}; \n\n'
+                            class_content += f'  private String {enum_type_map[type]};\n\n'
                         for import_line in import_lines:
                             if type in import_line:
                                 imported_pb = re.compile('import \"(.*?)\"').findall(import_line)[0]
@@ -174,7 +172,7 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
         if class_content == '':
             return
 
-        content_start = f'@Data \npublic class {class_name} {extend_str} ' + "{\n\n"
+        content_start = f'@Data\npublic class {class_name} {extend_str} ' + "{\n\n"
 
         content_package = f'package com.niubang.trade.tth.share.model.{package_name}.{config["sub_package"]};\n\n'
         content_import += 'import com.alibaba.fastjson.annotation.JSONField;\n' \
@@ -182,11 +180,11 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
         if need_not_null_import:
             content_import += 'import com.niubang.trade.tth.share.model.annotation.NotNull;\n\n'
         if 'BaseRq' in extend_str:
-            content_import += 'import com.niubang.trade.tth.share.model.base.BaseRq; \n\n'
+            content_import += 'import com.niubang.trade.tth.share.model.base.BaseRq;\n\n'
         elif 'BaseSessionRq' in extend_str:
-            content_import += 'import com.niubang.trade.tth.share.model.base.BaseSessionRq; \n\n'
+            content_import += 'import com.niubang.trade.tth.share.model.base.BaseSessionRq;\n\n'
         elif 'BaseAllowNullSessionRq' in extend_str:
-            content_import += 'import com.niubang.trade.tth.share.model.base.BaseAllowNullSessionRq; \n\n'
+            content_import += 'import com.niubang.trade.tth.share.model.base.BaseAllowNullSessionRq;\n\n'
         content_body = class_content
         content_end = "}"
         content = (content_package + content_import + content_start + content_body + content_end)
@@ -209,7 +207,7 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
             class_name = re.compile(f"(.*?){config['generated_class_endfix']}").findall(data_class_name)[0] + config[
                 'req_class_endfix']
             content_import = f'import com.niubang.trade.tth.share.model.base.{extends_str};\nimport lombok.Data;\n'
-            content_start = f'@Data \npublic class {class_name} extends {extends_str}<{wrapper}> ' + "{\n\n"
+            content_start = f'@Data\npublic class {class_name} extends {extends_str}<{wrapper}> ' + "{\n\n"
             content_end = "}"
             content = (content_package + content_import + content_start + content_end)
             generate_java_file(file_name=class_name,
@@ -259,7 +257,7 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
         import_items.append('import com.niubang.trade.tth.biz.manager.dataobject.tradebasedefine.NBMsgErrorInfoResult;')
         import_items.append('import com.google.protobuf.InvalidProtocolBufferException;')
         import_items.append('import com.niubang.trade.tth.biz.manager.util.StringUtil;')
-        content_body += '    byte[] bytes = p.getBody(); \n'
+        content_body += '    byte[] bytes = p.getBody();\n'
         content_body += f'    {return_val} result = new ArrayList<>();\n'
 
         content_body += "    try {\n"
@@ -337,7 +335,7 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
                     elif type in enum_type_map:
                         content_body += f'          rsData.set{name}(String.valueOf(pbMsg.get{name}().getNumber()));\n'
                     else:
-                        content_body += f'          rsData.set{name}(pbMsg.get{name}()); \n'
+                        content_body += f'          rsData.set{name}(pbMsg.get{name}());\n'
             content_body += f'          ansCommData.add(rsData);\n'
             content_body += "        }\n"
             content_body += f'        answer.setAnsCommData(ansCommData);\n'
@@ -376,7 +374,7 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
                     elif type in enum_type_map:
                         content_body += f'        rsData.set{name}(String.valueOf(ans.get{name}().getNumber()));\n'
                     else:
-                        content_body += f'        rsData.set{name}(ans.get{name}()); \n'
+                        content_body += f'        rsData.set{name}(ans.get{name}());\n'
             # List < LoginRsData > ansCommData = new
             # ArrayList();
             # ansCommData.add(rsData);
@@ -390,7 +388,7 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
             content_body += f'        List<Answer<{real_type}>> answerList = new ArrayList<>();\n'
         else:
             content_body += f'        List<Answer> answerList = new ArrayList<>();\n'
-        content_body += f'        answerList.add(answer); \n\n'
+        content_body += f'        answerList.add(answer);\n\n'
         content_body += f'        return answerList;\n'
         content_body += '      }\n'
         content_body += '    } catch (InvalidProtocolBufferException e) {\n'
@@ -472,7 +470,7 @@ def generate_convert(class_name, code_content_lines, repeat, raw_import_pb_file,
                     import_items.append(
                         f'import com.niubang.trade.tth.biz.manager.dataobject.tradebasedefine.NB{type}.{type};')
                 else:
-                    content_body += f'        builder.set{name}(rq.get{name}()); \n'
+                    content_body += f'        builder.set{name}(rq.get{name}());\n'
         content_body += f'        break;\n'
         content_body += "      }\n"
         content_body += "    }\n"
@@ -544,7 +542,7 @@ def parse_enum_pb(pb_file, code_text):
     lines = code_text.split('\n')
     package_name = pb_file.split("/")[-2].replace("_", "")
     class_name = re.compile('([a-zA-Z_]+).proto').findall(pb_file)[0]
-    content_package = f'package com.niubang.trade.tth.share.model.{package_name}; \n\n'
+    content_package = f'package com.niubang.trade.tth.share.model.{package_name};\n\n'
     content_start = f"public enum {class_name} " + "{\n"
 
     content_body = "\n"
@@ -556,9 +554,9 @@ def parse_enum_pb(pb_file, code_text):
         enum_val = enum_reg_array[0][1]
         content_body += f'  {enum_name.strip()}("{enum_val.strip()}")'
         if index < len(lines) - 1:
-            content_body += ", \n"
+            content_body += ",\n"
         else:
-            content_body += "; \n"
+            content_body += ";\n"
 
     content_body += "\n\n"
 
