@@ -129,20 +129,23 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
                                     extend_str = 'extends BaseAllowNullSessionRq'
                         else:
                             class_content += f'  @JSONField(name="{name.upper()}")\n'
-                            if identifier.strip() == 'required':
+                            if identifier.strip() == 'required' and config == rq_config:
                                 class_content += f'  @NotNull\n'
                                 need_not_null_import = True
                             if config == rq_config:
-                                default_val = ' = ""'
+                                default_val = ''
                                 if "int" in type:
-                                    default_val = ' = "0"'
+                                    if need_not_null_import:
+                                        default_val = ''
+                                    else:
+                                        default_val = ' = "0"'
                                 class_content += f'  private {type_map[type]} {process_name(name)}{default_val}; \n\n'
                             else:
                                 class_content += f'  private {type_map[type]} {process_name(name)}; \n\n'
                     else:
                         if type in enum_type_map:
                             class_content += f'  @JSONField(name="{name.upper()}")\n'
-                            if identifier.strip() == 'required':
+                            if identifier.strip() == 'required' and config == rq_config:
                                 class_content += f'  @NotNull\n'
                                 need_not_null_import = True
                             class_content += f'  private String {enum_type_map[type]}; \n\n'
