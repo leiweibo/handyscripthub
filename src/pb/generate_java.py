@@ -120,6 +120,15 @@ def parse_rs_pb(pb_file, class_name=None, package_name=None, config={}, repeated
                                     class_content += f'  @NotNull\n'
                                     need_not_null_import = True
                                 class_content += f'  private {type_map[type]} {process_name(name)};\n\n'
+                            elif 'ReqFundPwdCheck.proto' in pb_file:
+                                # user_pwd字段是必填的，不过是免密接口
+                                class_content += f'  @JSONField(name="{name.upper()}")\n'
+                                if identifier.strip() == 'required':
+                                    class_content += f'  @NotNull\n'
+                                    need_not_null_import = True
+                                class_content += f'  private {type_map[type]} {process_name(name)};\n\n'
+                                extend_str = 'extends BaseAllowNullSessionRq'
+
                             else:
                                 if identifier.strip() == 'required':
                                     class_content += f'  private {type_map[type]} {process_name(name)};\n\n'
